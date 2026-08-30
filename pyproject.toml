@@ -1,0 +1,19 @@
+[project]
+name = "cd7638"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.10.12"
+dependencies = [
+    "matplotlib",
+    "pip",
+    "pygame",
+    "rait",
+]
+
+[tool.uv.workspace]
+members = [
+    "docs/env_setup/rait",
+]
+
+[tool.uv.sources]
+rait = { workspace = true }
