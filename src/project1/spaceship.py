@@ -21,6 +21,24 @@
 #   local results to differ (since those changes don't carry over to
 #   Gradescope), in which case you should download a fresh copy of all the
 #   project files.
+from rait import matrix
+
+# constant F, H, and R for the six variable state system
+F = matrix([[1, 0, 1, 0, 0.5, 0],
+            [0, 1, 0, 1, 0, 0.5],
+            [0, 0, 1, 0, 1, 0],
+            [0, 0, 0, 1, 0, 1],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]])
+
+H = matrix([[1, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0]])
+
+R = matrix([[0.045 * 0.45, 0],
+            [0, 0.075 * 0.75]])
+
+P_init = matrix()
+P_init.identity(3)
 
 OUTPUT_UNIQUE_FILE_ID = False
 if OUTPUT_UNIQUE_FILE_ID:
@@ -37,7 +55,21 @@ class Spaceship():
         self.x_bounds = bounds['x']
         self.y_bounds = bounds['y']
         self.agent_pos_start = xy_start
+        self.asteroid_states = None
+        self.asteroid_uncertainty = None
 
+    def _init_single_asteroid(self, coordinate):
+        state = matrix([[coordinate[0], coordinate[1], 0, 0, 0, 0]]).transpose()
+        uncertainty = P_init.expand(6, 6, [0, 2, 4], [0, 2, 4]).scalar_mul(self.x_bounds[1]) + P_init.expand(6, 6, [1, 3, 5], [1, 3, 5]).scalar_mul(self.y_bounds[1])
+        return state, uncertainty
+
+    def _init_asteroids(self, asteroid_observations):
+        # initialize X and P for the k asteroids to be estimated
+        # TODO: enhance initialization strategy: potentially directly use first observation?
+        self.asteroid_states = {}
+        self.asteroid_uncertainty = {}
+        for i, coordinate in asteroid_observations.items():
+            self.asteroid_states[i], self.asteroid_uncertainty[i] = self._init_single_asteroid(coordinate)
 
     def predict_from_observations(self, asteroid_observations):
         """Observe asteroid locations and predict their positions at time t+1.
@@ -75,8 +107,29 @@ class Spaceship():
         # return asteroid_observations
 
         # FOR STUDENT TODO: Update the Spaceship's estimate of where the asteroids will be located in the next time step
+        if self.asteroid_states is None:
+            self._init_asteroids(asteroid_observations)
 
-        return {-1: (5.5, 5.5)}
+        # if len(asteroid_observations) > len(self.asteroid_states):
+        I = matrix()
+        I.identity(6)
+        # Measurement step
+        for i, ob in asteroid_observations.items():
+            x = self.asteroid_states[i]
+            P = self.asteroid_uncertainty[i]
+            z = matrix([[ob[0], ob[1]]]).transpose()
+            y = z - H * x
+            S = H * P * H.transpose() + R
+            K = P * H.transpose() * S.inverse()
+            self.asteroid_states[i] = x + K * y
+            self.asteroid_uncertainty[i] = (I - K * H) * P
+
+        # Prediction step
+        for i in asteroid_observations.keys():
+            self.asteroid_states[i] = F * self.asteroid_states[i]
+            self.asteroid_uncertainty[i] = F * self.asteroid_uncertainty[i] * F.transpose()
+
+        return {i: (self.asteroid_states[i][0][0], self.asteroid_states[i][1][0]) for i in asteroid_observations.keys()}
 
     def jump(self, asteroid_observations, agent_data):
         """ Return the id of the asteroid the spaceship should jump/hop onto in the next timestep
@@ -115,5 +168,5 @@ class Spaceship():
 
 def who_am_i():
     # Please specify your GT login ID in the whoami variable (ex: jsmith326).
-    whoami = ''
+    whoami = 'test'
     return whoami
