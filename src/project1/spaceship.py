@@ -110,7 +110,14 @@ class Spaceship():
         if self.asteroid_states is None:
             self._init_asteroids(asteroid_observations)
 
-        # if len(asteroid_observations) > len(self.asteroid_states):
+        # to address new asteroids getting added
+        new_asteroids = asteroid_observations.keys() - self.asteroid_states.keys()
+        if new_asteroids:
+            for i in new_asteroids:
+                new_state, new_uncertainty = self._init_single_asteroid(asteroid_observations[i])
+                self.asteroid_states[i] = new_state
+                self.asteroid_uncertainty[i] = new_uncertainty
+
         I = matrix()
         I.identity(6)
         # Measurement step
