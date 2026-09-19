@@ -43,7 +43,7 @@ R = matrix([[rx**2, 0],
 P_init = matrix()
 P_init.identity(3)
 
-COLD_START = 10
+COLD_START = 50
 X_BUFFER = 0.1
 Y_BUFFER = 0.1
 JUMP_BUFFER = 0.3
@@ -244,7 +244,7 @@ class Spaceship():
         ranking_vel = rank_dict_vals(velocities)
         ranking_acc = rank_dict_vals(accelerations)
 
-        ranking = {k: v for k, v in zip(ranking_pos.keys(), elem_addition(elem_addition(ranking_pos.values(), ranking_vel.values()), ranking_acc.values()))}
+        ranking = {k: v for k, v in zip(ranking_pos.keys(), elem_addition(ranking_pos.values(), ranking_vel.values()))}
 
         ranking_holder = math.inf
         target = None
