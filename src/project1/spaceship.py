@@ -34,8 +34,11 @@ F = matrix([[1, 0, 1, 0, 0.5, 0],
 H = matrix([[1, 0, 0, 0, 0, 0],
             [0, 1, 0, 0, 0, 0]])
 
-R = matrix([[0.045 * 0.45, 0],
-            [0, 0.075 * 0.75]])
+rx = 0.045
+ry = 0.075
+
+R = matrix([[rx**2, 0],
+            [0, ry**2]])
 
 P_init = matrix()
 P_init.identity(3)
@@ -43,7 +46,7 @@ P_init.identity(3)
 COLD_START = 10
 X_BUFFER = 0.1
 Y_BUFFER = 0.1
-JUMP_BUFFER = 0.2
+JUMP_BUFFER = 0.3
 
 OUTPUT_UNIQUE_FILE_ID = False
 if OUTPUT_UNIQUE_FILE_ID:
@@ -156,6 +159,11 @@ class Spaceship():
                 new_state, new_uncertainty = self._init_single_asteroid(asteroid_observations[i])
                 self.asteroid_states[i] = new_state
                 self.asteroid_uncertainty[i] = new_uncertainty
+
+        removed_asteroids = self.asteroid_states.keys() - asteroid_observations.keys()
+        if removed_asteroids:
+            for i in removed_asteroids:
+                self.asteroid_states.pop(i)
 
         I = matrix()
         I.identity(6)
