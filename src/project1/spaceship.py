@@ -40,13 +40,14 @@ ry = 0.075
 R = matrix([[rx**2, 0],
             [0, ry**2]])
 
-P_init = matrix()
-P_init.identity(3)
+P_init = matrix([[1, 0, 0],
+                 [0, 2, 0],
+                 [0, 0, 4]])
 
 COLD_START = 50
-X_BUFFER = 0.1
-Y_BUFFER = 0.1
-JUMP_BUFFER = 0.3
+X_BUFFER = 0.15
+Y_BUFFER = 0.2
+JUMP_BUFFER = 0.4
 
 OUTPUT_UNIQUE_FILE_ID = False
 if OUTPUT_UNIQUE_FILE_ID:
@@ -208,15 +209,17 @@ class Spaceship():
     def _near_x_bound_right(self, location):
         return (self.x_bounds[1] - location[0]) < self.x_buffer
 
+    def _near_end_zone(self, location):
+        return location[1] > self.y_bounds[1] - self.y_buffer
 
     def _jump_back_x(self, available_asteroid_pos):
-        dist_tracker = -1 * math.inf
+        dist_tracker = math.inf
         target = None
         for i, coordinate in available_asteroid_pos.items():
-            dist = math.sqrt(coordinate[0]**2 + (coordinate[0] - self.x_bounds[1])**2)
-            if math.sqrt(coordinate[0]**2 + (coordinate[0] - self.x_bounds[1])**2) > dist_tracker:
+            dist_to_center = math.fabs(self.x_bounds[1] / 2 - coordinate[0])
+            if dist_to_center < dist_tracker:
+                dist_tracker = dist_to_center
                 target = i
-                dist_tracker = dist
         return target
 
     @staticmethod
@@ -255,6 +258,21 @@ class Spaceship():
 
         return target
 
+    def _find_initial_asteroid(self, agent_data, available_asteroids):
+        target = None
+        dist_tracker = -1 * math.inf
+        for i in available_asteroids:
+            state = self.asteroid_states[i]
+            if state[1][0] < agent_data['jump_distance'] * 0.5:
+                continue
+            if state[3][0] < 0:
+                continue
+            if state[1][0] > dist_tracker:
+                dist_tracker = state[1][0]
+                target = i
+        return target
+
+
     def jump(self, asteroid_observations, agent_data):
         """ Return the id of the asteroid the spaceship should jump/hop onto in the next timestep
         ----------
@@ -292,37 +310,44 @@ class Spaceship():
         # Wait till KF calibrate
         if self.cold_start > 0:
             self.cold_start -= 1
-            return None, None
+            return None, asteroid_pos_predictions
 
         # Find available asteroids to jump to
         available_asteroids = self.find_jumpable_asteroids(agent_data)
         if not available_asteroids:
-            return None, None
+            return None, asteroid_pos_predictions
 
         if agent_data['ridden_asteroid'] is None:
-            target = self._find_better_asteroid(available_asteroids)
-            return target, asteroid_pos_predictions[target]
+            target = self._find_initial_asteroid(agent_data, available_asteroids)
+            return target, asteroid_pos_predictions
         else:
+            next_pos = asteroid_pos_predictions[agent_data['ridden_asteroid']]
             current_state = self.asteroid_states[agent_data['ridden_asteroid']]
-            current_pos = (current_state[0][0], current_state[1][0])
             # 1. if near bottom boundary
-            if self._near_y_bound(current_pos) and self.asteroid_states[agent_data['ridden_asteroid']][3][0] < 0:
+            if self._near_y_bound(next_pos) and (current_state[3][0] < 0):
                 target = self._jump_back_y(available_asteroids)
-                return target, asteroid_pos_predictions[target]
+                return target, asteroid_pos_predictions
 
             # 2. if near side boundaries
-            if (self._near_x_bound_left(current_pos) and (self.asteroid_states[agent_data['ridden_asteroid']][2][0] < 0))\
-                    or (self._near_x_bound_right(current_pos) and (self.asteroid_states[agent_data['ridden_asteroid']][2][0] > 0)):
+            if (self._near_x_bound_left(next_pos) and (current_state[2][0] < 0)) or (self._near_x_bound_right(next_pos) and (current_state[2][0] > 0)):
                 target = self._jump_back_x(available_asteroids)
-                return target, asteroid_pos_predictions[target]
+                return target, asteroid_pos_predictions
 
-            # 3. if not near boundaries
+            # 3. if near end zone
+            if self._near_end_zone(next_pos) and (current_state[3][0] > 0):
+                return None, asteroid_pos_predictions
+
+            # 4. if in the middle
+
+            # 4.1 if speed > 0, continue to coast
+            # if self.asteroid_states[agent_data['ridden_asteroid']][2][0] > 0:
+
             available_asteroids.update({agent_data['ridden_asteroid']: asteroid_pos_predictions[agent_data['ridden_asteroid']]})
             target = self._find_better_asteroid(available_asteroids)
-            if target == agent_data['ridden_asteroid']:
-                return None, None
+            if (target == agent_data['ridden_asteroid']) or (target / max(asteroid_observations.keys()) > 0.9):
+                return None, asteroid_pos_predictions
             else:
-                return target, asteroid_pos_predictions[target]
+                return target, asteroid_pos_predictions
 
 
 def who_am_i():
