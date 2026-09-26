@@ -159,6 +159,15 @@ class Spaceship():
         for i, coordinate in asteroid_observations.items():
             self.asteroid_states[i], self.asteroid_uncertainty[i] = self._init_single_asteroid(coordinate)
 
+    def _clip_observation(self, ob):
+        x = ob[0]
+        y = ob[1]
+        x = max(x, 0)
+        y = max(y, 0)
+        x = min(self.x_bounds[1], x)
+        y = min(self.y_bounds[1], y)
+        return (x, y)
+
     def predict_from_observations(self, asteroid_observations):
         """Observe asteroid locations and predict their positions at time t+1.
         Parameters
@@ -195,6 +204,8 @@ class Spaceship():
         # return asteroid_observations
 
         # FOR STUDENT
+        for i in asteroid_observations.keys():
+            asteroid_observations[i] = self._clip_observation(asteroid_observations[i])
         if self.asteroid_states is None:
             self._init_asteroids(asteroid_observations)
 

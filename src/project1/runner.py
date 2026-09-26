@@ -342,7 +342,7 @@ def run_estimation(asteroidshower,
     score_consistency *= 40
     score_accuracy *= 50
     overall_score = sum((score_fast, score_consistency, score_accuracy))
-
+    print(f'Overall score: {overall_score}, fast: {score_fast * 100 / 10}, consistency: {score_consistency * 100 / 40}, accuracy: {score_accuracy * 100 / 50}')
     if overall_score >= 20:
         ret = (SUCCESS, t)
         message = SUCCESS
